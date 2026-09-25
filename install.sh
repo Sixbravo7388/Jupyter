@@ -151,6 +151,8 @@ create_vps() {
     fi
     
     loading_bar "Generating Mobile Cloud-Init Matrix"
+    
+    # FIXED YAML GENERATION USING write_files MODULE TO AVOID SYNTAX PARSING ERRORS
     cat <<EOF > /home/daytona/user-data
 #cloud-config
 ssh_pwauth: True
@@ -167,18 +169,20 @@ packages:
   - websockify
   - dbus-x11
 
+write_files:
+  - path: /home/${USER_NAME}/.vnc/xstartup
+    owner: ${USER_NAME}:${USER_NAME}
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      xrdb \$HOME/.Xresources
+      startxfce4 &
+
 runcmd:
   - mkdir -p /home/${USER_NAME}/.vnc
   - echo "${USER_PASS}" | vncpasswd -f > /home/${USER_NAME}/.vnc/passwd
   - chmod 600 /home/${USER_NAME}/.vnc/passwd
   - chown -R ${USER_NAME}:${USER_NAME} /home/${USER_NAME}/.vnc
-  - cat << 'VNCFILES' > /home/${USER_NAME}/.vnc/xstartup
-#!/bin/bash
-xrdb \$HOME/.Xresources
-startxfce4 &
-VNCFILES
-  - chmod +x /home/${USER_NAME}/.vnc/xstartup
-  - chown ${USER_NAME}:${USER_NAME} /home/${USER_NAME}/.vnc/xstartup
   - su - ${USER_NAME} -c "vncserver :1 -geometry ${MOBILE_RES} -depth 24"
   - su - ${USER_NAME} -c "websockify --web /usr/share/novnc/ 6080 localhost:5901 &"
 EOF
